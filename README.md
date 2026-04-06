@@ -1,97 +1,66 @@
-# VulnAssess
+# VulnAssess Monorepo
 
-VulnAssess is a full-stack web vulnerability assessment platform built with FastAPI, React, React Native, and MongoDB. It provides authenticated scanning, real-time scan progress, PDF reporting, AI-assisted remediation, and an admin dashboard for managing users, scans, modules, and payments.
+This workspace contains the full VulnAssess stack:
+- Backend API and scan engine (FastAPI)
+- Web frontend (React)
+- Mobile app (Expo / React Native)
 
-## What It Does
+## Folder Structure
 
-- Scans web applications for common security issues such as SQL injection, XSS, CSRF, SSRF, IDOR, insecure headers, weak JWT handling, and exposed API keys.
-- Runs an async scan engine with multiple modules and progress tracking.
-- Supports user authentication, scan history, scheduled scans, and comparison of scan results.
-- Generates downloadable PDF reports and AI remediation guidance.
-- Includes mobile and web frontends plus an admin panel for operations.
-
-## Project Layout
-
-- `backend/` FastAPI API, scan engine, MongoDB integration, scripts, and backend documentation.
-- `web/` React web app for dashboard, scans, reports, and admin use.
-- `mobile/` React Native app for Android/iOS with secure token storage.
-
-## Architecture Overview
-
-1. The web or mobile client authenticates with the backend.
-2. The backend issues a session token and enforces CSRF and role checks.
-3. Scan requests are stored in MongoDB and executed by the async scan engine.
-4. The engine crawls the target, runs vulnerability modules, stores findings, and updates progress.
-5. Reports and AI remediation data are returned through the API.
-
-For a deeper explanation of how the system works, see [docs/OVERVIEW.md](docs/OVERVIEW.md).
-
-## Key Features
-
-- Async FastAPI backend with MongoDB persistence.
-- Scan module pipeline with rate limiting and cancellation support.
-- Admin overview endpoint for faster dashboard loading.
-- Mobile and web admin interfaces.
-- AI remediation reports powered by Anthropic.
-- Public-safe `.env.example` template and secret-safe repository setup.
-
-## Local Setup
-
-### Backend
-
-```bash
-cd backend
-# Windows PowerShell
-Copy-Item .env.example .env
-
-# macOS/Linux
-# cp .env.example .env
-pip install -r requirements.txt
-uvicorn main:app --reload
+```text
+vulnassess/
+  backend/   FastAPI API, scan engine, admin scripts
+  web/       React web app
+  mobile/    Expo React Native app
+  .venv/     Shared local Python virtual environment
+  RUN_COMMANDS.md
 ```
 
-### Web
+## Quick Start
 
-```bash
-cd web
+### 1) Backend
+
+```powershell
+cd C:\vulnassess\backend
+..\.venv\Scripts\python.exe -m uvicorn main:app --reload
+```
+
+### 2) Web
+
+```powershell
+cd C:\vulnassess\web
 npm install
 npm start
 ```
 
-### Mobile
+### 3) Mobile
 
-```bash
-cd mobile
+```powershell
+cd C:\vulnassess\mobile
 npm install
-npx expo start
+npx expo start --clear
 ```
 
-## How To Update The Repo
+## Backend Utility Scripts
 
-After making changes locally:
+All operational scripts are under:
 
-```bash
-git status
-git add .
-git commit -m "Describe your change clearly"
-git push
+```text
+backend/scripts/
 ```
 
-If you want to publish a major milestone, keep the commit message focused on the outcome, for example:
+Examples:
+- `create_admin.py`
+- `reset_admin.py`
+- `benchmark.py`
 
-```bash
-git commit -m "Improve scan performance and admin loading"
+Run scripts from `backend/` with the shared virtual environment:
+
+```powershell
+..\.venv\Scripts\python.exe scripts\create_admin.py
 ```
 
-## Public Repo Safety
+## Notes
 
-Before making the repository public:
-
-- Keep real secrets only in `.env` files.
-- Commit only `.env.example` templates.
-- Never commit API keys, database URLs, or production secrets.
-- Keep dependency folders and build artifacts ignored.
-
-## Resume-Friendly Description
-
-VulnAssess is a full-stack vulnerability scanning platform built with FastAPI, React, React Native, and MongoDB. It includes an async scan engine, admin operations, PDF reporting, and AI remediation support for web application security assessment.
+- Keep sensitive values only in `.env` files.
+- Do not use the scanner on systems without explicit permission.

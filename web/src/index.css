@@ -1,0 +1,180 @@
+/* ─────────────────────────────────────────────
+   VulnAssess — index.css
+   Variables, reset, fonts only.
+   All component classes live in theme.css
+───────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+/* ── LIGHT THEME (default) ────────────────── */
+:root {
+  --bg:               #E8EBF0;
+  --bg2:              #DDE1E7;
+  --card:             #F4F6FA;
+  --card2:            #ECF0F5;
+  --border:           #C2C8D4;
+  --border2:          #A8B0BF;
+
+  --accent:           #191970;
+  --accent2:          #13135a;
+  --accent-muted:     rgba(25,25,112,0.09);
+  --accent-border:    rgba(25,25,112,0.25);
+
+  --text:             #1A1A2E;
+  --text-secondary:   #3D3D5C;
+  --muted:            #6B6B8A;
+  --muted2:           #4A4A6A;
+  --text-muted:       #6B6B8A;
+
+  /* Severity */
+  --critical:         #9B1C1C;
+  --critical-bg:      #FEE2E2;
+  --critical-border:  #FBBCBC;
+  --high:             #7C3D0A;
+  --high-bg:          #FEF3C7;
+  --high-border:      #FCD34D;
+  --medium:           #1A4E8C;
+  --medium-bg:        #DBEAFE;
+  --medium-border:    #93C5FD;
+  --low:              #166534;
+  --low-bg:           #DCFCE7;
+  --low-border:       #86EFAC;
+  --info-c:           #4A4A6A;
+  --info-bg:          #F1F3F8;
+  --info-border:      #C2C8D4;
+
+  /* Legacy aliases */
+  --red:              #9B1C1C;
+  --orange:           #7C3D0A;
+  --yellow:           #92610A;
+  --green:            #166534;
+  --blue:             #1A4E8C;
+  --blue-bg:          #DBEAFE;
+  --blue-border:      #93C5FD;
+  --danger:           #9B1C1C;
+  --danger-bg:        #FEE2E2;
+  --danger-border:    #FBBCBC;
+
+  /* Status */
+  --status-completed: #166534;
+  --status-running:   #92610A;
+  --status-failed:    #9B1C1C;
+  --status-pending:   #6B6B8A;
+
+  /* Typography — Inter for body, Barlow Condensed for labels/headings */
+  --font:             'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:        'Barlow Condensed', sans-serif;
+
+  /* Radius */
+  --r-sm:  5px;
+  --r-md:  8px;
+  --r-lg:  12px;
+  --r-xl:  16px;
+}
+
+/* ── DARK THEME ───────────────────────────── */
+[data-theme="dark"] {
+  --bg:               #060a0f;
+  --bg2:              #0d1117;
+  --card:             #111827;
+  --card2:            #1a2332;
+  --border:           #1e2d3d;
+  --border2:          #2d3f52;
+
+  --accent:           #00d4ff;
+  --accent2:          #0099bb;
+  --accent-muted:     rgba(0,212,255,0.08);
+  --accent-border:    rgba(0,212,255,0.2);
+
+  --text:             #e2e8f0;
+  --text-secondary:   #94a3b8;
+  --muted:            #64748b;
+  --muted2:           #94a3b8;
+  --text-muted:       #64748b;
+
+  /* Severity */
+  --critical:         #F7C1C1;
+  --critical-bg:      #791F1F;
+  --critical-border:  #A32D2D;
+  --high:             #FAC775;
+  --high-bg:          #633806;
+  --high-border:      #854F0B;
+  --medium:           #B5D4F4;
+  --medium-bg:        #0C447C;
+  --medium-border:    #185FA5;
+  --low:              #C0DD97;
+  --low-bg:           #27500A;
+  --low-border:       #3B6D11;
+  --info-c:           #D3D1C7;
+  --info-bg:          #444441;
+  --info-border:      #5F5E5A;
+
+  /* Legacy aliases */
+  --red:              #F7C1C1;
+  --orange:           #FAC775;
+  --yellow:           #FAC775;
+  --green:            #00ff88;
+  --blue:             #85B7EB;
+  --blue-bg:          #0C447C;
+  --blue-border:      #185FA5;
+  --danger:           #F87171;
+  --danger-bg:        #450A0A;
+  --danger-border:    #7F1D1D;
+
+  /* Status */
+  --status-completed: #00ff88;
+  --status-running:   #FAC775;
+  --status-failed:    #F7C1C1;
+  --status-pending:   #64748b;
+}
+
+/* ── RESET ────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.2s, color 0.2s;
+}
+
+button { font-family: var(--font-mono); cursor: pointer; border: none; outline: none; transition: all 0.15s; }
+
+input, textarea, select {
+  font-family: var(--font);
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 9px 13px;
+  border-radius: var(--r-md);
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-muted);
+}
+input::placeholder { color: var(--muted); }
+
+a { color: var(--accent); text-decoration: none; }
+
+/* ── SCROLLBAR ────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ── ANIMATIONS ───────────────────────────── */
+@keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:0.4} }
+@keyframes spin    { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes slideIn { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+
+.animate-in { animation: slideIn 0.25s ease forwards; }
+.fade-in    { animation: fadeIn  0.25s ease forwards; }

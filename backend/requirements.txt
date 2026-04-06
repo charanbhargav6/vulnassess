@@ -1,0 +1,38 @@
+# Core
+fastapi==0.115.0
+uvicorn==0.30.6
+python-multipart==0.0.9
+
+# Database
+motor==3.5.1
+pymongo==4.8.0
+
+# Auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+
+# Pydantic (let pip resolve compatible versions)
+pydantic[email]
+pydantic-settings
+email-validator==2.2.0
+
+# HTTP client (scan modules)
+httpx==0.27.2
+beautifulsoup4==4.12.3
+
+# PDF generation
+reportlab==4.2.2
+
+# Scheduler
+APScheduler==3.10.4
+
+# Rate limiting
+slowapi==0.1.9
+
+# Utilities
+aiofiles==24.1.0
+python-dotenv==1.0.1
+
+# Cryptography (JWT attacks module)
+cryptography

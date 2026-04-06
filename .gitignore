@@ -1,5 +1,9 @@
 # Python
 .venv/
+venv/
+backend/venv/
+ENV/
+env/
 __pycache__/
 *.pyc
 *.pyo
@@ -15,9 +19,12 @@ backend/.env.*
 
 # Node / Expo / React
 node_modules/
-build/
-web/build/
 mobile/node_modules/
+web/node_modules/
+build/
+dist/
+web/build/
+web/dist/
 mobile/.expo/
 mobile/dist/
 mobile/web-build/
