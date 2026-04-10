@@ -1311,6 +1311,9 @@ async def run_scan(scan_id: str, target_url: str, username: str=None, password: 
                 ok = await auth_sess.login(session, target_url, username, password)
                 extra_flag = {"authenticated":True} if ok else {"auth_failed":True}
                 await update("running","Login "+("succeeded" if ok else "failed"),11,extra_flag)
+                # Drop credentials from memory once authentication phase completes.
+                username = None
+                password = None
 
             # ── MODULES ───────────────────────────────────────
             steps = [

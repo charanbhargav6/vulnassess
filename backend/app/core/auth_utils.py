@@ -128,6 +128,46 @@ async def get_authenticated_user(
     }
 
 
+async def get_authenticated_db_user(
+    request: Request,
+    allow_query_token: bool = False,
+    require_active: bool = True,
+) -> Dict:
+    cached_user = getattr(request.state, "_auth_db_user", None)
+    if cached_user is not None:
+        return cached_user
+
+    token = extract_request_token(request, allow_query_token=allow_query_token)
+    payload = verify_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    raw_user_id = payload.get("sub")
+    if not raw_user_id:
+        raise HTTPException(status_code=401, detail="Invalid authentication payload")
+
+    try:
+        user_id = ObjectId(raw_user_id)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid authentication payload")
+
+    db = get_database()
+    db_user = await db.users.find_one({"_id": user_id})
+    if not db_user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    if require_active and not db_user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Account deactivated")
+
+    token_version = int(payload.get("ver", 1))
+    user_token_version = int(db_user.get("token_version", 1))
+    if token_version != user_token_version:
+        raise HTTPException(status_code=401, detail="Session expired. Please login again")
+
+    request.state._auth_db_user = db_user
+    return db_user
+
+
 async def require_admin_user(request: Request) -> Dict[str, str]:
     user = await get_authenticated_user(request)
     if user.get("role") != "admin":

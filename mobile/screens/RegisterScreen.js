@@ -16,9 +16,13 @@ export default function RegisterScreen({ navigation }) {
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [confirm,  setConfirm]  = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
   const [success,  setSuccess]  = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [resendMsg, setResendMsg] = useState('');
 
   const handleRegister = async () => {
     setError('');
@@ -28,10 +32,23 @@ export default function RegisterScreen({ navigation }) {
     setLoading(true);
     try {
       const data = await api.register(email, password);
-      if (data.id || data.email || data.message) setSuccess(true);
+      if (data.id || data.email || data.message) {
+        setSuccessMessage(data.message || 'Verification link sent to your email.');
+        setSuccess(true);
+      }
       else setError(data.detail || 'Registration failed');
     } catch { setError('Cannot connect to server'); }
     setLoading(false);
+  };
+
+  const handleResendVerification = async () => {
+    setResendMsg('');
+    try {
+      const data = await api.resendVerificationEmail(email);
+      setResendMsg(data?.message || data?.detail || 'Verification email request sent');
+    } catch {
+      setResendMsg('Unable to resend email right now. Try again.');
+    }
   };
 
   const s = styles(theme);
@@ -41,8 +58,16 @@ export default function RegisterScreen({ navigation }) {
       <View style={s.card}>
         <Text style={s.successIcon}>✉</Text>
         <Text style={s.successTitle}>CHECK YOUR EMAIL</Text>
-        <Text style={s.successSub}>Verification link sent to:</Text>
+        <Text style={s.successSub}>{successMessage || 'Verification link sent to:'}</Text>
         <Text style={s.successEmail}>{email}</Text>
+        <TouchableOpacity style={[s.btn, { marginTop: 6 }]} onPress={handleResendVerification}>
+          <Text style={s.btnText}>RESEND VERIFICATION EMAIL</Text>
+        </TouchableOpacity>
+        {!!resendMsg && (
+          <View style={String(resendMsg).toLowerCase().includes('unable') ? s.errorBox : s.successBox}>
+            <Text style={String(resendMsg).toLowerCase().includes('unable') ? s.errorText : s.successText}>{resendMsg}</Text>
+          </View>
+        )}
         <TouchableOpacity style={s.btn} onPress={() => navigation.replace('Login')}>
           <Text style={s.btnText}>← BACK TO LOGIN</Text>
         </TouchableOpacity>
@@ -63,8 +88,13 @@ export default function RegisterScreen({ navigation }) {
           value={email} onChangeText={t=>{setEmail(t);setError('');}} autoCapitalize="none" keyboardType="email-address"/>
 
         <Text style={s.label}>PASSWORD</Text>
-        <TextInput style={s.input} placeholder="••••••••" placeholderTextColor={theme.textMuted}
-          value={password} onChangeText={t=>{setPassword(t);setError('');}} secureTextEntry/>
+        <View style={s.inputRow}>
+          <TextInput style={[s.input, { flex: 1, marginBottom: 0 }]} placeholder="••••••••" placeholderTextColor={theme.textMuted}
+            value={password} onChangeText={t=>{setPassword(t);setError('');}} secureTextEntry={!showPassword}/>
+          <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={s.showBtn}>
+            <Text style={s.showBtnText}>{showPassword ? 'HIDE' : 'SHOW'}</Text>
+          </TouchableOpacity>
+        </View>
 
         {password.length > 0 && (
           <View style={s.rulesBox}>
@@ -77,8 +107,13 @@ export default function RegisterScreen({ navigation }) {
         )}
 
         <Text style={s.label}>CONFIRM PASSWORD</Text>
-        <TextInput style={s.input} placeholder="••••••••" placeholderTextColor={theme.textMuted}
-          value={confirm} onChangeText={t=>{setConfirm(t);setError('');}} secureTextEntry/>
+        <View style={s.inputRow}>
+          <TextInput style={[s.input, { flex: 1, marginBottom: 0 }]} placeholder="••••••••" placeholderTextColor={theme.textMuted}
+            value={confirm} onChangeText={t=>{setConfirm(t);setError('');}} secureTextEntry={!showConfirm}/>
+          <TouchableOpacity onPress={() => setShowConfirm(v => !v)} style={s.showBtn}>
+            <Text style={s.showBtnText}>{showConfirm ? 'HIDE' : 'SHOW'}</Text>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity style={[s.btn, loading && s.btnDisabled]} onPress={handleRegister} disabled={loading}>
           {loading ? <ActivityIndicator color={theme.card} /> : <Text style={s.btnText}>→ CREATE ACCOUNT</Text>}
@@ -100,8 +135,13 @@ const styles = t => StyleSheet.create({
   subtitle:     { fontSize:13, color:t.textMuted, textAlign:'center', marginBottom:20 },
   label:        { fontSize:10, fontWeight:'bold', color:t.textSecondary, letterSpacing:2, marginBottom:6, marginTop:8 },
   input:        { backgroundColor:t.input, borderWidth:1, borderColor:t.inputBorder, borderRadius:8, padding:12, fontSize:14, color:t.text, marginBottom:2 },
+  inputRow:     { flexDirection:'row', alignItems:'center', gap:8, marginBottom:2 },
+  showBtn:      { borderWidth:1, borderColor:t.border, borderRadius:8, paddingVertical:10, paddingHorizontal:10, backgroundColor:t.bg2 },
+  showBtnText:  { color:t.textSecondary, fontSize:11, fontWeight:'700', letterSpacing:0.8 },
   errorBox:     { backgroundColor:t.dangerBg, borderWidth:1, borderColor:t.dangerBorder, borderRadius:8, padding:12, marginBottom:14 },
   errorText:    { color:t.danger, fontSize:13, fontWeight:'600' },
+  successBox:   { backgroundColor:'rgba(16,185,129,0.12)', borderWidth:1, borderColor:'rgba(16,185,129,0.5)', borderRadius:8, padding:12, marginTop:10 },
+  successText:  { color:'#34D399', fontSize:13, fontWeight:'600' },
   rulesBox:     { backgroundColor:t.mediumBg, borderWidth:1, borderColor:t.mediumBorder, borderRadius:8, padding:12, marginBottom:8 },
   rule:         { fontSize:12, marginBottom:3 },
   btn:          { backgroundColor:t.accent, borderRadius:8, padding:14, alignItems:'center', marginTop:16 },

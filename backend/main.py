@@ -18,11 +18,15 @@ import time
 from urllib.parse import urlparse
 
 scheduler = AsyncIOScheduler()
+MAX_REQUEST_BODY_BYTES = 1_048_576  # 1 MiB
 
 
 async def ensure_indexes(db):
     await db.users.create_index([("email", 1)])
     await db.users.create_index([("created_at", -1)])
+
+    await db.password_reset_otps.create_index([("email", 1), ("created_at", -1)])
+    await db.password_reset_otps.create_index([("expires_at", 1)], expireAfterSeconds=0)
 
     await db.scans.create_index([("user_id", 1)])
     await db.scans.create_index([("created_at", -1)])
@@ -34,6 +38,7 @@ async def ensure_indexes(db):
 
     await db.subscription_payments.create_index([("user_id", 1), ("created_at", -1)])
     await db.activity_logs.create_index([("timestamp", -1)])
+    await db.rate_limits.create_index([("expires_at", 1)], expireAfterSeconds=0)
 
 
 async def revoke_expired_subscriptions():
@@ -63,12 +68,25 @@ async def revoke_expired_subscriptions():
 async def run_scheduled_scans():
     try:
         db = get_database()
+        from app.services.credential_crypto import decrypt_secret
         now = datetime.utcnow()
         async for schedule in db.schedules.find({
             "is_active": True,
             "next_run": {"$lte": now}
         }):
             from app.scan_engine.engine import run_scan
+
+            username = None
+            password = None
+            if schedule.get("auth_enabled"):
+                try:
+                    username = decrypt_secret(schedule.get("auth_username_enc"))
+                    password = decrypt_secret(schedule.get("auth_password_enc"))
+                except Exception as exc:
+                    print(f"Scheduler auth decrypt failed for schedule {schedule.get('_id')}: {exc}")
+                    username = None
+                    password = None
+
             scan_data = {
                 "user_id": schedule["user_id"],
                 "target_url": schedule["target_url"],
@@ -85,8 +103,8 @@ async def run_scheduled_scans():
             asyncio.create_task(run_scan(
                 scan_id,
                 schedule["target_url"],
-                schedule.get("username"),
-                schedule.get("password")
+                username,
+                password,
             ))
 
             hours = schedule["interval_hours"]
@@ -274,6 +292,25 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
 )
+
+
+@app.middleware("http")
+async def request_size_guard(request: Request, call_next):
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > MAX_REQUEST_BODY_BYTES:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": "Request body too large"},
+                )
+        except ValueError:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": "Invalid Content-Length header"},
+            )
+
+    return await call_next(request)
 
 
 @app.middleware("http")

@@ -58,6 +58,22 @@ export function createApi(storage) {
       });
       return res.json();
     },
+    resendVerificationEmail: (email) =>
+      post('/auth/resend-verification', { email: (email || '').trim().toLowerCase() }),
+
+    checkEmail: (email) => post('/auth/check-email', { email: (email || '').trim().toLowerCase() }),
+    sendForgotPasswordOtp: (email) => post('/auth/forgot-password/send-otp', { email: (email || '').trim().toLowerCase() }),
+    verifyForgotPasswordOtp: (email, otp) =>
+      post('/auth/forgot-password/verify-otp', {
+        email: (email || '').trim().toLowerCase(),
+        otp: String(otp || '').trim(),
+      }),
+    resetPasswordWithOtp: (email, otp, new_password) =>
+      post('/auth/forgot-password/reset', {
+        email: (email || '').trim().toLowerCase(),
+        otp: String(otp || '').trim(),
+        new_password,
+      }),
 
     logout: async () => {
       try { await post('/auth/logout'); } catch (_) {}

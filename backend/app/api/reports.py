@@ -4,6 +4,7 @@ from app.db.database import get_database
 from app.core.auth_utils import get_authenticated_user, get_authenticated_db_user
 from app.core.config import settings
 from app.core.security import create_access_token, verify_token
+from app.services.rate_limit_service import enforce_rate_limit
 from bson import ObjectId
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -14,8 +15,10 @@ from reportlab.platypus import (
 )
 import io, httpx, json, re
 from datetime import datetime, timedelta
+import logging
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 SUBSCRIPTION_CACHE_TTL_SECONDS = 300
 _subscription_state_cache = {}
@@ -86,8 +89,9 @@ async def test_ai_key(request: Request):
             except Exception:
                 msg = resp.text[:200]
             return JSONResponse({"ok": False, "status": resp.status_code, "error": msg})
-    except Exception as e:
-        return JSONResponse({"ok": False, "error": str(e)})
+    except Exception:
+        logger.exception("AI key test failed")
+        return JSONResponse({"ok": False, "error": "AI provider request failed"})
 
 
 async def get_current_user(request: Request, allow_query_token: bool = False):
@@ -170,6 +174,8 @@ async def issue_report_download_token(scan_id: str, request: Request):
 @router.get("/reports/{scan_id}/ai-remediation")
 async def get_ai_remediation(scan_id: str, request: Request):
     """AI-powered fix recommendations for every vulnerability in a scan."""
+    await enforce_rate_limit(request, "ai_remediation_ip", limit=8, window_seconds=600)
+
     user = await get_current_user(request)
     db = get_database()
 
@@ -271,14 +277,11 @@ Important constraints:
             result = json.loads(match.group())
 
     except httpx.HTTPStatusError as e:
-        try:
-            body = e.response.json()
-            detail = body.get("error", {}).get("message") or str(body)
-        except Exception:
-            detail = e.response.text[:300]
-        raise HTTPException(status_code=502, detail=f"AI error {e.response.status_code}: {detail}")
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI remediation failed: {str(e)}")
+        logger.warning("AI remediation provider error status=%s", e.response.status_code)
+        raise HTTPException(status_code=502, detail="AI provider request failed")
+    except Exception:
+        logger.exception("AI remediation failed")
+        raise HTTPException(status_code=502, detail="AI remediation currently unavailable")
 
     # Cache in MongoDB
     await db.scans.update_one(

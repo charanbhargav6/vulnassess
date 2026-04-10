@@ -29,12 +29,19 @@ const writeSecure = async (key, value) => {
     return;
   }
 
+  let stored = false;
   try {
     if (await isSecureStoreAvailable()) {
       await SecureStore.setItemAsync(key, String(value));
+      stored = true;
     }
   } catch (_) {
     // AsyncStorage fallback below
+  }
+
+  if (!stored) {
+    await AsyncStorage.setItem(key, String(value));
+    return;
   }
 
   // Remove stale legacy values from AsyncStorage for auth keys.

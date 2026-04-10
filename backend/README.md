@@ -240,6 +240,8 @@ pip install -r requirements.txt
 # Set environment variables
 set MONGODB_URL=mongodb+srv://<user>:<pass>@vulnassess.xxx.mongodb.net/vulnassess
 set SECRET_KEY=your-secret-key
+set CREDENTIALS_ENCRYPTION_KEY=your-generated-fernet-key
+set APP_ENV=production
 set ANTHROPIC_API_KEY=sk-ant-...
 
 # Run
@@ -278,6 +280,8 @@ cd vulnassess/backend
 |---|---|
 | `MONGODB_URL` | MongoDB Atlas connection string |
 | `SECRET_KEY` | JWT signing secret (min 32 chars) |
+| `CREDENTIALS_ENCRYPTION_KEY` | Fernet key used to encrypt scheduled scan credentials |
+| `APP_ENV` | Set to `production` in deployed environments |
 | `ANTHROPIC_API_KEY` | Claude API key for AI remediation |
 | `FRONTEND_URL` | Primary frontend origin for CORS |
 

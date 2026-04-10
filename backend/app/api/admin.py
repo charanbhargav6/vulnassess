@@ -1,7 +1,13 @@
 from fastapi import APIRouter, HTTPException, Request
 from app.db.database import get_database
 from app.core.auth_utils import get_authenticated_user, get_authenticated_db_user, require_admin_user
-from app.schemas.schemas import RoleUpdate, ModuleUpdate, PaymentStatusUpdate
+from app.schemas.schemas import (
+    RoleUpdate,
+    ModuleUpdate,
+    PaymentStatusUpdate,
+    ScanLimitUpdate,
+    ModuleOrderUpdate,
+)
 from app.core.config import settings
 from bson import ObjectId
 from datetime import datetime, timedelta
@@ -103,36 +109,35 @@ async def _auto_verify_payment(payment: dict):
 async def get_all_users(request: Request):
     db = get_database()
     await get_admin_user(request, db)
-    pipeline = [
-        {
-            "$lookup": {
-                "from": "scans",
-                "let": {"uid": {"$toString": "$_id"}},
-                "pipeline": [
-                    {"$match": {"$expr": {"$eq": ["$user_id", "$$uid"]}}},
-                    {"$count": "count"},
-                ],
-                "as": "scan_info",
+    users = []
+    projection = {
+        "email": 1,
+        "role": 1,
+        "created_at": 1,
+        "scan_limit": 1,
+        "is_active": 1,
+        "has_ai_subscription": 1,
+        "subscription_status": 1,
+        "subscription_tier": 1,
+    }
+    async for user in db.users.find({}, projection=projection).sort("created_at", -1):
+        uid = str(user["_id"])
+        scan_count = await db.scans.count_documents({"user_id": uid})
+        users.append(
+            {
+                "id": uid,
+                "email": user.get("email"),
+                "role": user.get("role", "user"),
+                "created_at": user.get("created_at"),
+                "scan_count": scan_count,
+                "scan_limit": user.get("scan_limit", 100),
+                "is_active": user.get("is_active", True),
+                "has_ai_subscription": user.get("has_ai_subscription", False),
+                "subscription_status": user.get("subscription_status", "inactive"),
+                "subscription_tier": user.get("subscription_tier"),
             }
-        },
-        {
-            "$project": {
-                "id": {"$toString": "$_id"},
-                "email": 1,
-                "role": 1,
-                "created_at": 1,
-                "scan_count": {
-                    "$ifNull": [{"$arrayElemAt": ["$scan_info.count", 0]}, 0]
-                },
-                "scan_limit": {"$ifNull": ["$scan_limit", 100]},
-                "is_active": {"$ifNull": ["$is_active", True]},
-                "has_ai_subscription": {"$ifNull": ["$has_ai_subscription", False]},
-                "subscription_status": {"$ifNull": ["$subscription_status", "inactive"]},
-                "subscription_tier": {"$ifNull": ["$subscription_tier", None]},
-            }
-        },
-    ]
-    return await db.users.aggregate(pipeline).to_list(length=None)
+        )
+    return users
 
 
 @router.get("/admin/payments")
@@ -269,11 +274,10 @@ async def update_role(user_id: str, role_update: RoleUpdate, request: Request):
     return {"message": "Role updated"}
 
 @router.put("/admin/users/{user_id}/limit")
-async def update_scan_limit(user_id: str, request: Request):
+async def update_scan_limit(user_id: str, data: ScanLimitUpdate, request: Request):
     db = get_database()
     await get_admin_user(request, db)
-    body = await request.json()
-    limit = body.get("scan_limit", 100)
+    limit = data.scan_limit
     await db.users.update_one(
         {"_id": ObjectId(user_id)},
         {"$set": {"scan_limit": limit}}
@@ -335,36 +339,33 @@ async def get_admin_overview(request: Request):
     db = get_database()
     await get_admin_user(request, db)
 
-    users_pipeline = [
-        {
-            "$lookup": {
-                "from": "scans",
-                "let": {"uid": {"$toString": "$_id"}},
-                "pipeline": [
-                    {"$match": {"$expr": {"$eq": ["$user_id", "$$uid"]}}},
-                    {"$count": "count"},
-                ],
-                "as": "scan_info",
+    users = []
+    projection = {
+        "email": 1,
+        "role": 1,
+        "created_at": 1,
+        "scan_limit": 1,
+        "is_active": 1,
+        "has_ai_subscription": 1,
+        "subscription_status": 1,
+        "subscription_tier": 1,
+    }
+    async for user in db.users.find({}, projection=projection).sort("created_at", -1):
+        uid = str(user["_id"])
+        users.append(
+            {
+                "id": uid,
+                "email": user.get("email"),
+                "role": user.get("role", "user"),
+                "created_at": user.get("created_at"),
+                "scan_count": await db.scans.count_documents({"user_id": uid}),
+                "scan_limit": user.get("scan_limit", 100),
+                "is_active": user.get("is_active", True),
+                "has_ai_subscription": user.get("has_ai_subscription", False),
+                "subscription_status": user.get("subscription_status", "inactive"),
+                "subscription_tier": user.get("subscription_tier"),
             }
-        },
-        {
-            "$project": {
-                "id": {"$toString": "$_id"},
-                "email": 1,
-                "role": 1,
-                "created_at": 1,
-                "scan_count": {
-                    "$ifNull": [{"$arrayElemAt": ["$scan_info.count", 0]}, 0]
-                },
-                "scan_limit": {"$ifNull": ["$scan_limit", 100]},
-                "is_active": {"$ifNull": ["$is_active", True]},
-                "has_ai_subscription": {"$ifNull": ["$has_ai_subscription", False]},
-                "subscription_status": {"$ifNull": ["$subscription_status", "inactive"]},
-                "subscription_tier": {"$ifNull": ["$subscription_tier", None]},
-            }
-        },
-    ]
-    users = await db.users.aggregate(users_pipeline).to_list(length=None)
+        )
 
     modules = []
     async for module in db.modules.find(sort=[("order", 1)]):
@@ -547,14 +548,12 @@ async def update_module(module_key: str, update: ModuleUpdate, request: Request)
     return {"message": "Module updated"}
 
 @modules_router.put("/modules/{module_key}/order")
-async def update_module_order(module_key: str, request: Request):
+async def update_module_order(module_key: str, data: ModuleOrderUpdate, request: Request):
     db = get_database()
     await get_admin_user(request, db)
-    body = await request.json()
-    new_order = body.get("order")
     await db.modules.update_one(
         {"module_key": module_key},
-        {"$set": {"order": new_order}}
+        {"$set": {"order": data.order}}
     )
     return {"message": "Order updated"}
 

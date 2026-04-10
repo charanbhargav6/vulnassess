@@ -12,7 +12,16 @@ from app.core.auth_utils import (
     set_auth_cookie,
 )
 from app.core.config import settings
-from app.schemas.schemas import UserRegister, UserLogin, Token
+from app.services.rate_limit_service import enforce_rate_limit
+from app.schemas.schemas import (
+    UserRegister,
+    UserLogin,
+    Token,
+    EmailCheckRequest,
+    ForgotPasswordRequest,
+    VerifyOtpRequest,
+    ResetPasswordWithOtpRequest,
+)
 from bson import ObjectId
 from pydantic import BaseModel
 
@@ -84,6 +93,7 @@ def get_remaining_attempts(ip: str) -> int:
 
 @router.post("/auth/register")
 async def register(user: UserRegister, request: Request):
+    await enforce_rate_limit(request, "auth_register_ip", limit=10, window_seconds=900)
     ip = get_client_ip(request)
 
     if is_blocked(ip):
@@ -132,16 +142,22 @@ async def register(user: UserRegister, request: Request):
     # Send verification email
     from app.services.email_service import create_verification_token, send_verification_email
     token = await create_verification_token(user_id, user.email)
-    await send_verification_email(user.email, token)
+    mail_sent = await send_verification_email(user.email, token)
 
     return {
-        "message": "Account created! Please check your email to verify your account.",
+        "message": (
+            "Account created! Please check your email to verify your account."
+            if mail_sent
+            else "Account created, but SMTP is not configured. Verification emails are currently disabled."
+        ),
+        "mail_sent": bool(mail_sent),
         "id": user_id
     }
 
 
 @router.post("/auth/login")
 async def login(user: UserLogin, request: Request, response: Response):
+    await enforce_rate_limit(request, "auth_login_ip", limit=25, window_seconds=900)
     ip = get_client_ip(request)
 
     # Check if IP is blocked
@@ -236,6 +252,106 @@ async def login(user: UserLogin, request: Request, response: Response):
     }
 
 
+@router.post("/auth/check-email")
+async def check_email(data: EmailCheckRequest, request: Request):
+    await enforce_rate_limit(request, "auth_check_email_ip", limit=40, window_seconds=600)
+
+    db = get_database()
+    email = data.email.strip().lower()
+    user = await db.users.find_one({"email": email})
+    if not user:
+        return {"exists": False, "is_verified": False}
+    return {
+        "exists": True,
+        "is_verified": bool(user.get("is_verified", False)),
+        "is_active": bool(user.get("is_active", True)),
+    }
+
+
+@router.post("/auth/forgot-password/send-otp")
+async def send_forgot_password_otp(data: ForgotPasswordRequest, request: Request):
+    db = get_database()
+    email = data.email.strip().lower()
+
+    await enforce_rate_limit(request, "forgot_send_otp_ip", limit=6, window_seconds=600)
+    await enforce_rate_limit(request, "forgot_send_otp_email", limit=5, window_seconds=600, subject=f"email:{email}")
+
+    user = await db.users.find_one({"email": email})
+    if not user:
+        return {"message": "If the email is registered, a reset code has been sent."}
+
+    from app.services.email_service import (
+        create_password_reset_otp,
+        send_password_reset_otp_email,
+    )
+
+    otp = await create_password_reset_otp(str(user["_id"]), email)
+    await send_password_reset_otp_email(email, otp)
+    return {"message": "If the email is registered, a reset code has been sent."}
+
+
+@router.post("/auth/forgot-password/verify-otp")
+async def verify_forgot_password_otp(data: VerifyOtpRequest, request: Request):
+    from app.services.email_service import verify_password_reset_otp
+
+    email = data.email.strip().lower()
+    otp = (data.otp or "").strip()
+
+    await enforce_rate_limit(request, "forgot_verify_otp_ip", limit=20, window_seconds=600)
+    await enforce_rate_limit(request, "forgot_verify_otp_email", limit=15, window_seconds=600, subject=f"email:{email}")
+
+    if not otp or len(otp) != 6 or not otp.isdigit():
+        raise HTTPException(status_code=400, detail="OTP must be a 6-digit code")
+
+    is_valid = await verify_password_reset_otp(email, otp)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+
+    return {"valid": True}
+
+
+@router.post("/auth/forgot-password/reset")
+async def reset_password_with_otp(data: ResetPasswordWithOtpRequest, request: Request):
+    db = get_database()
+    email = data.email.strip().lower()
+    otp = (data.otp or "").strip()
+
+    await enforce_rate_limit(request, "forgot_reset_ip", limit=10, window_seconds=900)
+    await enforce_rate_limit(request, "forgot_reset_email", limit=8, window_seconds=900, subject=f"email:{email}")
+
+    if not validate_password(data.new_password):
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be 8+ chars with uppercase, lowercase and number",
+        )
+    if not otp or len(otp) != 6 or not otp.isdigit():
+        raise HTTPException(status_code=400, detail="OTP must be a 6-digit code")
+
+    user = await db.users.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+
+    from app.services.email_service import consume_password_reset_otp
+
+    consumed = await consume_password_reset_otp(email, otp)
+    if not consumed:
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {
+                "password_hash": get_password_hash(data.new_password),
+                "is_active": True,
+                "is_verified": True,
+            },
+            "$inc": {"token_version": 1},
+        },
+    )
+
+    return {"message": "Password reset successful. Please login with your new password."}
+
+
 @router.get("/auth/me")
 async def get_me(request: Request):
     db = get_database()
@@ -288,6 +404,36 @@ async def verify_email(token: str):
     if result["success"]:
         return {"message": f"Email verified! You can now login.", "success": True}
     raise HTTPException(status_code=400, detail=result["message"])
+
+
+@router.post("/auth/resend-verification")
+async def resend_verification_email(data: EmailCheckRequest, request: Request):
+    db = get_database()
+    email = data.email.strip().lower()
+
+    await enforce_rate_limit(request, "resend_verification_ip", limit=6, window_seconds=900)
+    await enforce_rate_limit(request, "resend_verification_email", limit=5, window_seconds=900, subject=f"email:{email}")
+
+    user = await db.users.find_one({"email": email})
+    if not user:
+        return {
+            "message": "If the email is registered, verification instructions have been sent.",
+            "mail_sent": False,
+        }
+    if user.get("is_verified", False):
+        return {
+            "message": "If the email is registered, verification instructions have been sent.",
+            "mail_sent": False,
+        }
+
+    from app.services.email_service import create_verification_token, send_verification_email
+
+    token = await create_verification_token(str(user["_id"]), email)
+    mail_sent = await send_verification_email(email, token)
+    return {
+        "message": "If the email is registered, verification instructions have been sent.",
+        "mail_sent": bool(mail_sent),
+    }
 
 class VerifyPasswordRequest(BaseModel):
     password: str

@@ -8,8 +8,16 @@
 
 /* ── PAGE WRAPPER ─────────────────────────── */
 .va-page {
-  max-width: 1200px;
-  padding-bottom: 32px;
+  width: 100%;
+  max-width: none;
+  padding-bottom: 16px;
+}
+
+.va-dashboard-page {
+  height: calc(100vh - 110px);
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 12px;
 }
 
 /* ── PAGE HEADER ──────────────────────────── */
@@ -18,6 +26,7 @@
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 24px;
+  gap: 16px;
 }
 
 .va-page-title {
@@ -35,6 +44,46 @@
   font-weight: 400;
   font-size: 14px;
   color: var(--muted);
+}
+
+.va-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.va-search-shell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: min(100%, 280px);
+  padding: 8px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+.va-search-icon {
+  color: var(--muted);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.va-search-input {
+  border: none;
+  background: transparent;
+  padding: 0;
+  width: 100%;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+
+.va-search-input:focus {
+  box-shadow: none;
 }
 
 /* ── SECTION TITLE (inside cards) ─────────── */
@@ -73,6 +122,135 @@
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 12px;
   margin-bottom: 24px;
+}
+
+.va-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.9fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.va-dashboard-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.va-dashboard-main,
+.va-side-stack {
+  min-height: 100%;
+}
+
+.va-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.va-card-sub {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.va-trend-pill {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+  white-space: nowrap;
+}
+
+.va-side-cards {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.va-side-card {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--r-lg);
+  padding: 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005));
+}
+
+.va-side-card-label {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+
+.va-side-card-value {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.va-side-card-hint {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.va-mini-chart-wrap {
+  margin-top: 16px;
+}
+
+.va-mini-list {
+  margin-top: 16px;
+}
+
+.va-mini-list-items {
+  display: grid;
+  gap: 10px;
+}
+
+.va-mini-list-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: rgba(255,255,255,0.015);
+}
+
+.va-mini-list-title {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.va-mini-list-sub {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.va-mini-list-empty {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 8px 2px;
+}
+
+.va-chart-box {
+  height: 240px;
+}
+
+.va-chart-box-small {
+  height: 170px;
 }
 
 .va-stat-card {
@@ -241,6 +419,31 @@
 /* ── FORM ELEMENTS ────────────────────────── */
 .va-field {
   margin-bottom: 16px;
+}
+
+.va-input-wrap {
+  position: relative;
+}
+
+.va-pass-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.va-pass-toggle:hover {
+  color: var(--text);
+  border-color: var(--accent-border);
 }
 
 .va-label {
@@ -873,6 +1076,10 @@
   padding: 24px;
 }
 
+.va-content.va-content-dashboard {
+  overflow: hidden;
+}
+
 /* ── SCANS PAGE ───────────────────────────── */
 .va-scans-shell {
   display: flex;
@@ -1033,6 +1240,86 @@
   letter-spacing: 0.1em;
   color: var(--text);
   margin-bottom: 16px;
+}
+
+.va-status-modal {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: min(90vw, 420px);
+  padding: 22px 22px 24px;
+  position: relative;
+  text-align: center;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.32);
+}
+
+.va-status-close {
+  position: absolute;
+  right: 14px;
+  top: 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.va-status-icon {
+  width: 56px;
+  height: 56px;
+  margin: 8px auto 14px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.va-status-icon.ok {
+  background: rgba(52, 199, 89, 0.17);
+  color: #22b14c;
+}
+
+.va-status-icon.bad {
+  background: rgba(255, 59, 48, 0.16);
+  color: #ea4335;
+}
+
+.va-status-title {
+  margin: 0 0 10px;
+  color: var(--text);
+  font-size: 30px;
+  font-family: var(--font);
+  font-weight: 700;
+}
+
+.va-status-text {
+  margin: 0 auto 18px;
+  color: var(--muted2);
+  font-size: 15px;
+  line-height: 1.45;
+  max-width: 320px;
+}
+
+.va-status-btn {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 10px 16px;
+}
+
+.va-status-btn.ok {
+  background: #31c45a;
+}
+
+.va-status-btn.bad {
+  background: #ff3b30;
 }
 
 /* ── EMPTY / CENTER STATES ────────────────── */
@@ -1317,9 +1604,35 @@
     gap: 10px;
   }
 
+  .va-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .va-search-shell {
+    width: 100%;
+  }
+
   .va-two-col-grid,
   .va-plan-grid {
     grid-template-columns: 1fr;
+  }
+
+  .va-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .va-dashboard-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .va-dashboard-page {
+    height: auto;
+    grid-template-rows: auto;
+  }
+
+  .va-content.va-content-dashboard {
+    overflow: auto;
   }
 
   .va-scan-toolbar {

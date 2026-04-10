@@ -29,6 +29,7 @@ export default function Scans({ setScreen }) {
   const [search,     setSearch]     = useState('');
   const [delModal,   setDelModal]   = useState(null);
   const [delPass,    setDelPass]    = useState('');
+  const [showDelPass, setShowDelPass] = useState(false);
   const [delErr,     setDelErr]     = useState('');
   const [pdfLoading, setPdfLoading] = useState(false);
 
@@ -70,7 +71,7 @@ export default function Scans({ setScreen }) {
   const handleDelete = async () => {
     const res = await api.deleteScan(getId(delModal), delPass);
     if (res.message || res.success) {
-      setDelModal(null); setDelPass(''); setDelErr('');
+      setDelModal(null); setDelPass(''); setDelErr(''); setShowDelPass(false);
       setSelId(null); setDetail(null); load();
     } else {
       setDelErr(res.detail || 'Wrong password');
@@ -204,7 +205,7 @@ export default function Scans({ setScreen }) {
 
       {/* DELETE MODAL */}
       {delModal && (
-        <div className="va-overlay" onClick={() => { setDelModal(null); setDelPass(''); setDelErr(''); }}>
+        <div className="va-overlay" onClick={() => { setDelModal(null); setDelPass(''); setDelErr(''); setShowDelPass(false); }}>
           <div className="va-modal" onClick={e => e.stopPropagation()}>
             <div className="va-modal-title" style={{ color:'var(--critical)' }}>CONFIRM DELETE</div>
             <p style={{ color:'var(--muted2)', fontSize:13, marginBottom:16, lineHeight:1.5 }}>
@@ -212,12 +213,17 @@ export default function Scans({ setScreen }) {
               <strong style={{ color:'var(--accent)' }}>{delModal.target_url || delModal.target}</strong>
             </p>
             {delErr && <div className="va-error" style={{ marginBottom:10 }}>⚠ {delErr}</div>}
-            <input type="password" value={delPass}
-              onChange={e => { setDelPass(e.target.value); setDelErr(''); }}
-              placeholder="Your password" style={{ marginBottom:16 }} />
+            <div className="va-input-wrap" style={{ marginBottom:16 }}>
+              <input type={showDelPass ? 'text' : 'password'} value={delPass}
+                onChange={e => { setDelPass(e.target.value); setDelErr(''); }}
+                placeholder="Your password" style={{ paddingRight:76, marginBottom:0 }} />
+              <button type="button" className="va-pass-toggle" onClick={() => setShowDelPass(v => !v)}>
+                {showDelPass ? 'HIDE' : 'SHOW'}
+              </button>
+            </div>
             <div style={{ display:'flex', gap:10 }}>
               <button className="va-btn-secondary" style={{ flex:1 }}
-                onClick={() => { setDelModal(null); setDelPass(''); setDelErr(''); }}>
+                onClick={() => { setDelModal(null); setDelPass(''); setDelErr(''); setShowDelPass(false); }}>
                 CANCEL
               </button>
               <button className="va-btn-danger" style={{ flex:1, padding:'10px 0', fontSize:12, letterSpacing:'0.1em' }}

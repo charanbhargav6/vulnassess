@@ -1,5 +1,3 @@
-import secrets
-import sys
 from pydantic_settings import BaseSettings
 
 WEAK_KEYS = {
@@ -11,9 +9,11 @@ WEAK_KEYS = {
 }
 
 class Settings(BaseSettings):
+    APP_ENV: str = "development"
     MONGODB_URL: str = "mongodb://localhost:27017"
     DATABASE_NAME: str = "vulnassess"
     SECRET_KEY: str = ""
+    CREDENTIALS_ENCRYPTION_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
     AUTH_COOKIE_NAME: str = "va_session"
@@ -48,19 +48,20 @@ class Settings(BaseSettings):
         extra = "ignore"
 
     def validate_security(self):
-        """Warn loudly if insecure defaults are in use."""
+        """Fail fast if critical security settings are missing or weak."""
+        is_production = self.APP_ENV.lower() in {"prod", "production"}
+
         if not self.SECRET_KEY:
-            print(
-                "\n⚠️  WARNING: SECRET_KEY is not set! JWT tokens will not be safe until you add a strong secret in your .env file.\n"
-                f"   Suggested: SECRET_KEY={secrets.token_hex(32)}\n",
-                file=sys.stderr,
+            raise RuntimeError(
+                "SECRET_KEY is not set. Add a strong random secret in your environment before starting the app."
             )
-        elif self.SECRET_KEY in WEAK_KEYS:
-            print(
-                "\n⚠️  WARNING: SECRET_KEY is set to an insecure default! "
-                "JWT tokens can be forged. Set a strong SECRET_KEY in your .env file.\n"
-                f"   Suggested: SECRET_KEY={secrets.token_hex(32)}\n",
-                file=sys.stderr,
+        if self.SECRET_KEY in WEAK_KEYS:
+            raise RuntimeError(
+                "SECRET_KEY is using an insecure default. Replace it with a strong random value before starting the app."
+            )
+        if is_production and not self.CREDENTIALS_ENCRYPTION_KEY:
+            raise RuntimeError(
+                "CREDENTIALS_ENCRYPTION_KEY is required in production. Set a generated Fernet key in your environment."
             )
 
 settings = Settings()

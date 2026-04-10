@@ -133,7 +133,7 @@ export default function Layout({ children, screen, setScreen, user, onLogout }) 
             </button>
           </div>
         </div>
-        <div className="va-content">{children}</div>
+        <div className={`va-content${screen === 'dashboard' ? ' va-content-dashboard' : ''}`}>{children}</div>
       </main>
     </div>
   );

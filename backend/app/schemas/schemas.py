@@ -12,6 +12,25 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+
+class EmailCheckRequest(BaseModel):
+    email: EmailStr
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyOtpRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
+
+class ResetPasswordWithOtpRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str
+
 class UserResponse(BaseModel):
     id: str
     email: str
@@ -165,3 +184,25 @@ class ModuleResponse(BaseModel):
 # ── ADMIN ─────────────────────────────────────────────────────
 class RoleUpdate(BaseModel):
     role: str
+
+
+class ScanLimitUpdate(BaseModel):
+    scan_limit: int
+
+    @field_validator("scan_limit")
+    @classmethod
+    def validate_scan_limit(cls, v: int) -> int:
+        if v < 1 or v > 10000:
+            raise ValueError("scan_limit must be between 1 and 10000")
+        return v
+
+
+class ModuleOrderUpdate(BaseModel):
+    order: int
+
+    @field_validator("order")
+    @classmethod
+    def validate_order(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError("order must be a positive integer")
+        return v

@@ -14,9 +14,13 @@ export default function Register({ goLogin }) {
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [confirm,  setConfirm]  = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
   const [success,  setSuccess]  = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [resendMsg, setResendMsg] = useState('');
 
   const allPass = rules.every(r => r.test(password));
 
@@ -28,10 +32,23 @@ export default function Register({ goLogin }) {
     setLoading(true);
     try {
       const data = await api.register(email, password);
-      if (data.email || data.message) setSuccess(true);
+      if (data.email || data.message) {
+        setSuccessMessage(data.message || 'Registration successful. Please verify your email.');
+        setSuccess(true);
+      }
       else setError(data.detail || 'Registration failed');
     } catch { setError('Cannot connect to server'); }
     setLoading(false);
+  };
+
+  const handleResendVerification = async () => {
+    setResendMsg('');
+    try {
+      const data = await api.resendVerificationEmail(email);
+      setResendMsg(data?.message || data?.detail || 'Verification email request sent');
+    } catch {
+      setResendMsg('Unable to resend email right now. Try again.');
+    }
   };
 
   if (success) return (
@@ -45,9 +62,13 @@ export default function Register({ goLogin }) {
           <div className="va-success-icon">✉</div>
           <div className="va-success-title">CHECK YOUR EMAIL</div>
           <p className="va-success-text">
-            A verification link was sent to<br />
+            {successMessage || 'A verification link was sent to'}<br />
             <span className="va-success-email">{email}</span>
           </p>
+          <button className="va-btn-secondary" onClick={handleResendVerification} style={{ width: '100%', marginBottom: 10 }}>
+            RESEND VERIFICATION EMAIL
+          </button>
+          {resendMsg && <div className={String(resendMsg).toLowerCase().includes('unable') ? 'va-error' : 'va-success'}>{resendMsg}</div>}
           <div className="va-auth-divider" />
           <button className="va-auth-link" onClick={goLogin}>← BACK TO LOGIN</button>
         </div>
@@ -82,11 +103,17 @@ export default function Register({ goLogin }) {
 
             <div className="va-field">
               <label className="va-label">PASSWORD</label>
-              <input
-                type="password" value={password}
-                onChange={e => { setPassword(e.target.value); setError(''); }}
-                placeholder="••••••••"
-              />
+              <div className="va-input-wrap">
+                <input
+                  type={showPassword ? 'text' : 'password'} value={password}
+                  onChange={e => { setPassword(e.target.value); setError(''); }}
+                  placeholder="••••••••"
+                  style={{ paddingRight: 76 }}
+                />
+                <button type="button" className="va-pass-toggle" onClick={() => setShowPassword(v => !v)}>
+                  {showPassword ? 'HIDE' : 'SHOW'}
+                </button>
+              </div>
               {password && (
                 <div className="va-rules-box">
                   {rules.map(r => (
@@ -101,11 +128,17 @@ export default function Register({ goLogin }) {
 
             <div className="va-field">
               <label className="va-label">CONFIRM PASSWORD</label>
-              <input
-                type="password" value={confirm}
-                onChange={e => { setConfirm(e.target.value); setError(''); }}
-                placeholder="••••••••"
-              />
+              <div className="va-input-wrap">
+                <input
+                  type={showConfirm ? 'text' : 'password'} value={confirm}
+                  onChange={e => { setConfirm(e.target.value); setError(''); }}
+                  placeholder="••••••••"
+                  style={{ paddingRight: 76 }}
+                />
+                <button type="button" className="va-pass-toggle" onClick={() => setShowConfirm(v => !v)}>
+                  {showConfirm ? 'HIDE' : 'SHOW'}
+                </button>
+              </div>
             </div>
 
             <button
@@ -123,10 +156,6 @@ export default function Register({ goLogin }) {
             Already have an account?{' '}
             <button className="va-auth-link" onClick={goLogin}>SIGN IN</button>
           </p>
-
-          <div className="va-dev-note">
-            ⚠ Dev note: email verification is currently disabled. Account activates immediately.
-          </div>
         </div>
       </div>
     </div>

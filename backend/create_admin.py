@@ -2,6 +2,7 @@ import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from passlib.context import CryptContext
 from datetime import datetime
+import getpass
 
 pwd = CryptContext(schemes=['bcrypt'])
 
@@ -13,15 +14,24 @@ async def create():
         print('Admin already exists!')
         client.close()
         return
+
+    password = getpass.getpass('Enter admin password: ')
+    if not password:
+        print('Password cannot be empty.')
+        client.close()
+        return
+    if len(password) < 10:
+        print('Password must be at least 10 characters.')
+        client.close()
+        return
     await db.users.insert_one({
         'email': 'admin@vulnassess.com',
-        'password_hash': pwd.hash('Admin@123'),
+        'password_hash': pwd.hash(password),
         'role': 'admin',
         'created_at': datetime.utcnow()
     })
     print('Admin created successfully!')
     print('Email:    admin@vulnassess.com')
-    print('Password: Admin@123')
     client.close()
 
 asyncio.run(create())

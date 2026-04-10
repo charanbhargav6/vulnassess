@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Request
 from app.db.database import get_database
 from app.core.auth_utils import get_authenticated_user
+from app.services.credential_crypto import encrypt_secret
+from app.services.url_security import validate_scan_target
 from bson import ObjectId
 from datetime import datetime
 from pydantic import BaseModel
@@ -44,6 +46,7 @@ async def get_schedules(request: Request):
             "target_url": s["target_url"],
             "timeframe": s["timeframe"],
             "timeframe_label": TIMEFRAMES.get(s["timeframe"], {}).get("label", s["timeframe"]),
+            "auth_enabled": bool(s.get("auth_enabled", False)),
             "is_active": s.get("is_active", True),
             "last_run": s.get("last_run"),
             "next_run": s.get("next_run"),
@@ -62,6 +65,19 @@ async def create_schedule(data: ScheduleCreate, request: Request):
     if data.timeframe not in TIMEFRAMES:
         raise HTTPException(status_code=400, detail=f"Invalid timeframe. Choose from: {list(TIMEFRAMES.keys())}")
 
+    username = (data.username or "").strip() or None
+    password = (data.password or "").strip() or None
+    if (username and not password) or (password and not username):
+        raise HTTPException(status_code=400, detail="Provide both username and password for authenticated schedules")
+
+    normalized_target, _ = validate_scan_target(
+        data.target_url,
+        is_admin=(payload.get("role") == "admin"),
+    )
+
+    encrypted_username = encrypt_secret(username)
+    encrypted_password = encrypt_secret(password)
+
     # Check max 10 schedules per user
     count = await db.schedules.count_documents({"user_id": user_id})
     if count >= 10:
@@ -72,11 +88,12 @@ async def create_schedule(data: ScheduleCreate, request: Request):
 
     schedule = {
         "user_id": user_id,
-        "target_url": data.target_url,
+        "target_url": normalized_target,
         "timeframe": data.timeframe,
         "interval_hours": hours,
-        "username": data.username,
-        "password": data.password,
+        "auth_enabled": bool(username and password),
+        "auth_username_enc": encrypted_username,
+        "auth_password_enc": encrypted_password,
         "is_active": True,
         "run_count": 0,
         "last_run": None,

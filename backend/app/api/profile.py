@@ -10,6 +10,7 @@ from app.db.database import get_database
 from app.core.security import get_password_hash, verify_password
 from app.core.auth_utils import get_authenticated_user, revoke_user_sessions
 from app.core.config import settings
+from app.services.url_security import validate_proxy_url
 from app.schemas.schemas import ProxySettingsUpdate, SubscriptionRequestCreate
 
 router = APIRouter()
@@ -220,13 +221,17 @@ async def update_proxy_settings(data: ProxySettingsUpdate, request: Request):
     if data.proxy_enabled and not (data.proxy_url or "").strip():
         raise HTTPException(status_code=400, detail="Proxy URL is required when proxy is enabled")
 
+    sanitized_proxy_url = None
+    if data.proxy_enabled:
+        sanitized_proxy_url = validate_proxy_url(data.proxy_url or "", data.proxy_type or "http")
+
     db = get_database()
     await db.users.update_one(
         {"_id": ObjectId(payload["sub"])} ,
         {
             "$set": {
                 "proxy_enabled": data.proxy_enabled,
-                "proxy_url": data.proxy_url.strip() if data.proxy_enabled and data.proxy_url else None,
+                "proxy_url": sanitized_proxy_url,
                 "proxy_type": data.proxy_type or "http",
             }
         }

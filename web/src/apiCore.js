@@ -3,7 +3,11 @@
  * PATH: vulnassess-web/src/apiCore.js
  */
 
-export const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const viteApiUrl = typeof import.meta !== 'undefined' && import.meta.env
+  ? import.meta.env.VITE_API_URL
+  : undefined;
+
+export const BASE_URL = viteApiUrl || 'http://localhost:8000/api';
 
 export function createApi(storage) {
 
@@ -67,6 +71,22 @@ export function createApi(storage) {
       });
       return res.json();
     },
+    resendVerificationEmail: (email) =>
+      post('/auth/resend-verification', { email: (email || '').trim().toLowerCase() }),
+
+    checkEmail: (email) => post('/auth/check-email', { email: (email || '').trim().toLowerCase() }),
+    sendForgotPasswordOtp: (email) => post('/auth/forgot-password/send-otp', { email: (email || '').trim().toLowerCase() }),
+    verifyForgotPasswordOtp: (email, otp) =>
+      post('/auth/forgot-password/verify-otp', {
+        email: (email || '').trim().toLowerCase(),
+        otp: String(otp || '').trim(),
+      }),
+    resetPasswordWithOtp: (email, otp, new_password) =>
+      post('/auth/forgot-password/reset', {
+        email: (email || '').trim().toLowerCase(),
+        otp: String(otp || '').trim(),
+        new_password,
+      }),
 
     logout: async () => {
       try { await post('/auth/logout'); } catch (_) {}

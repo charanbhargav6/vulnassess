@@ -4,6 +4,7 @@ from app.schemas.schemas import ScanCreate, TargetVerifyRequest
 from app.core.security import verify_token, verify_password as verify_pwd, create_access_token
 from app.core.auth_utils import get_authenticated_user, get_authenticated_db_user
 from app.core.config import settings
+from app.services.url_security import normalize_target_url, validate_scan_target
 from app.scan_engine.engine import run_scan
 from typing import Optional
 from datetime import datetime, timedelta
@@ -12,27 +13,13 @@ from pydantic import BaseModel
 from urllib.parse import urlparse
 import httpx
 import re
+import logging
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Cancel flags stored in memory (scan_id -> True means cancel requested)
 cancel_flags = {}
-
-
-def _normalize_url(raw_url: str) -> str:
-    value = (raw_url or "").strip()
-    if not value:
-        raise HTTPException(status_code=400, detail="Target URL is required")
-    if not value.startswith(("http://", "https://")):
-        value = "https://" + value
-    parsed = urlparse(value)
-    if not parsed.hostname:
-        raise HTTPException(status_code=400, detail="URL must contain a valid hostname")
-    path = parsed.path or "/"
-    normalized = f"{parsed.scheme}://{parsed.netloc}{path}"
-    if parsed.query:
-        normalized += f"?{parsed.query}"
-    return normalized
 
 
 def _host_from_url(url: str) -> str:
@@ -99,24 +86,51 @@ class DeleteVerifyRequest(BaseModel):
 @router.post("/scans/verify-target")
 async def verify_target_url(data: TargetVerifyRequest, request: Request):
     payload = await get_current_user(request)
-    normalized_url = _normalize_url(data.target_url)
-    host = _host_from_url(normalized_url)
+    normalized_url, _ = validate_scan_target(data.target_url, is_admin=(payload.get("role") == "admin"))
 
-    if _is_blocked_host(host):
-        raise HTTPException(status_code=403, detail="You do not have permission to scan this URL")
-    if _is_protected_host(host) and payload.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="You do not have permission to scan this URL")
+    candidate_urls = [normalized_url]
+    parsed = urlparse(normalized_url)
+    if parsed.scheme == "http":
+        candidate_urls.append(normalized_url.replace("http://", "https://", 1))
+    elif parsed.scheme == "https":
+        candidate_urls.append(normalized_url.replace("https://", "http://", 1))
 
+    response = None
+    final_candidate = normalized_url
+    failure_reason = "url not found"
     try:
-        async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
-            response = await client.get(
-                normalized_url,
-                headers={"User-Agent": "VulnAssess URL Verifier/2.0"},
-            )
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, verify=False) as client:
+            for candidate in candidate_urls:
+                try:
+                    check = await client.get(
+                        candidate,
+                        headers={"User-Agent": "VulnAssess URL Verifier/2.0"},
+                    )
+                    if check.status_code < 500:
+                        response = check
+                        final_candidate = candidate
+                        break
+                    failure_reason = f"target returned status {check.status_code}"
+                except httpx.ConnectTimeout:
+                    failure_reason = "connection timed out from scanner server"
+                    continue
+                except httpx.ReadTimeout:
+                    failure_reason = "target response timed out"
+                    continue
+                except httpx.ConnectError:
+                    failure_reason = "target host is unreachable from scanner server"
+                    continue
+                except Exception:
+                    failure_reason = "url not found"
+                    continue
     except Exception:
+        response = None
+
+    if response is None:
+        logger.warning("Target verification failed for %s: %s", normalized_url, failure_reason)
         return {
             "verified": False,
-            "message": "url not found",
+            "message": failure_reason,
         }
 
     if response.status_code >= 400:
@@ -125,12 +139,8 @@ async def verify_target_url(data: TargetVerifyRequest, request: Request):
             "message": "url not found",
         }
 
-    final_url = str(response.url)
-    final_host = _host_from_url(final_url)
-    if _is_blocked_host(final_host):
-        raise HTTPException(status_code=403, detail="You do not have permission to scan this URL")
-    if _is_protected_host(final_host) and payload.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="You do not have permission to scan this URL")
+    final_url = str(response.url or final_candidate)
+    final_url, final_host = validate_scan_target(final_url, is_admin=(payload.get("role") == "admin"))
 
     verification_token = create_access_token(
         {
@@ -182,13 +192,7 @@ async def create_scan(scan: ScanCreate, request: Request, background_tasks: Back
     if not user.get("is_active", True):
         raise HTTPException(status_code=403, detail="Account deactivated")
 
-    target_url = _normalize_url(scan.target_url)
-    host = _host_from_url(target_url)
-
-    if _is_blocked_host(host):
-        raise HTTPException(status_code=403, detail="You do not have permission to scan this URL")
-    if _is_protected_host(host) and payload.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="You do not have permission to scan this URL")
+    target_url, _ = validate_scan_target(scan.target_url, is_admin=(payload.get("role") == "admin"))
 
     if not scan.verify_token:
         raise HTTPException(status_code=400, detail="Please verify target URL first")
@@ -217,8 +221,6 @@ async def create_scan(scan: ScanCreate, request: Request, background_tasks: Back
     new_scan = {
         "user_id": str(user["_id"]),
         "target_url": target_url,
-        "username": scan.username,
-        "password": scan.password,
         "proxy_enabled": user.get("proxy_enabled", False),
         "proxy_url": user.get("proxy_url"),
         "proxy_type": user.get("proxy_type", "http"),
