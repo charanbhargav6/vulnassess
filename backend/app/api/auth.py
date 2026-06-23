@@ -126,7 +126,7 @@ async def register(user: UserRegister, request: Request):
         "created_at": datetime.utcnow(),
         "scan_limit": 100,
         "is_active": True,
-        "is_verified": False,
+        "is_verified": not bool(settings.MAIL_USERNAME and settings.MAIL_PASSWORD),
         "has_ai_subscription": False,
         "subscription_tier": None,
         "subscription_status": "inactive",

@@ -159,9 +159,9 @@ async def lifespan(app: FastAPI):
             upsert=True
         )
 
-    # Patch old users without is_verified
+    # Patch old users without is_verified or unverified users when SMTP is disabled
     await db.users.update_many(
-        {"is_verified": {"$exists": False}},
+        {"is_verified": {"$in": [False, None]}},
         {"$set": {"is_verified": True}}
     )
 
