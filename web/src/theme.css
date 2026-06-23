@@ -1077,7 +1077,7 @@
 }
 
 .va-content.va-content-dashboard {
-  overflow: hidden;
+  overflow: auto;
 }
 
 /* ── SCANS PAGE ───────────────────────────── */
